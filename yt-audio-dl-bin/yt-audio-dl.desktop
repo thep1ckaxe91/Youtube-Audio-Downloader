@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=YT Audio Downloader
+Comment=Download YouTube videos as audio
+Exec=yt-audio-dl
+Icon=media-playback-start
+Terminal=false
+Categories=AudioVideo;Audio;Network;

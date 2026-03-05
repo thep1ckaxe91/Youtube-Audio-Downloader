@@ -1,0 +1,8 @@
+yt_audio_dl/build/
+yt_audio_dl/.dart_tool/
+yt_audio_dl/.pub-cache/
+yt_audio_dl/.pub/
+test_downloads/
+yt-audio-dl-bin/src/
+yt-audio-dl-bin/pkg/
+yt-audio-dl-bin/*.pkg.tar.zst
