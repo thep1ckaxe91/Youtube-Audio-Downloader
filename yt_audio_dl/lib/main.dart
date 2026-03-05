@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:convert';
 
 void main() {
   runApp(const YtAudioDownloaderApp());
@@ -42,6 +43,9 @@ class _DownloaderPageState extends State<DownloaderPage> {
 
   String _status = '';
   bool _isDownloading = false;
+  
+  String _downloadTitle = '';
+  double _downloadProgress = 0.0;
 
   @override
   void initState() {
@@ -62,6 +66,8 @@ class _DownloaderPageState extends State<DownloaderPage> {
     setState(() {
       _isDownloading = true;
       _status = 'Downloading...';
+      _downloadTitle = '';
+      _downloadProgress = 0.0;
     });
 
     final dirPath = _dirController.text.trim();
@@ -74,6 +80,7 @@ class _DownloaderPageState extends State<DownloaderPage> {
       final process = await Process.start(
         'yt-dlp',
         [
+          '--newline',
           '-x',
           '--audio-format',
           _selectedFormat,
@@ -85,11 +92,35 @@ class _DownloaderPageState extends State<DownloaderPage> {
         ],
       );
 
-      // We can optionally read stdout and stderr to show progress
-      process.stdout.transform(SystemEncoding().decoder).listen((data) {
+      process.stdout.transform(utf8.decoder).listen((data) {
         debugPrint(data);
+        final lines = data.split('\n');
+        for (var line in lines) {
+          if (line.contains('[download] Destination: ')) {
+            final titleExt = line.split('[download] Destination: ')[1].trim();
+            final title = titleExt.split('/').last; 
+            setState(() {
+              _downloadTitle = title;
+            });
+          } else if (line.contains('[download]') && line.contains('%')) {
+            final RegExp regex = RegExp(r'\[download\]\s+([\d\.]+)%');
+            final match = regex.firstMatch(line);
+            if (match != null) {
+              final percentStr = match.group(1);
+              if (percentStr != null) {
+                final percent = double.tryParse(percentStr);
+                if (percent != null) {
+                  setState(() {
+                    _downloadProgress = percent / 100.0;
+                  });
+                }
+              }
+            }
+          }
+        }
       });
-      process.stderr.transform(SystemEncoding().decoder).listen((data) {
+      
+      process.stderr.transform(utf8.decoder).listen((data) {
         debugPrint(data);
       });
 
@@ -196,18 +227,44 @@ class _DownloaderPageState extends State<DownloaderPage> {
               ),
             ),
             const SizedBox(height: 24),
+            
+            if (_isDownloading || _downloadTitle.isNotEmpty) ...[
+              if (_downloadTitle.isNotEmpty)
+                Text(
+                  'Downloading: $_downloadTitle',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              const SizedBox(height: 8),
+              if (_isDownloading)
+                LinearProgressIndicator(
+                  value: _downloadProgress > 0 ? _downloadProgress : null,
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              if (_isDownloading && _downloadProgress > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    '${(_downloadProgress * 100).toStringAsFixed(1)}%',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              const SizedBox(height: 16),
+            ],
+
             ElevatedButton(
               onPressed: _isDownloading ? null : _startDownload,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: _isDownloading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Download', style: TextStyle(fontSize: 16)),
+              child: Text(
+                _isDownloading ? 'Downloading...' : 'Download', 
+                style: const TextStyle(fontSize: 16)
+              ),
             ),
             const SizedBox(height: 24),
             Text(
